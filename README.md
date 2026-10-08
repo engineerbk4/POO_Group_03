@@ -2,11 +2,11 @@
 
 We are Team 03, a group of four Computer Engineering students from Universidad Peruana Cayetano Heredia. This repository contains our final project for the **Object-Oriented Programming** course.
 
-¡We are Ready! 🚀
+We are Ready!
 
 ---
 
-# 🚀 ¡Bienvenidos a nuestra misión!
+## 🚀 ¡Bienvenidos a nuestra misión!
 
 Este es el repositorio oficial de nuestro proyecto para el curso de **Programación Orientada a Objetos (POO)**.
 
@@ -25,7 +25,7 @@ Más que construir solamente un videojuego, buscamos aplicar lo aprendido durant
 | **Rebeca Milagros Cerdan Dongo** | Desarrollo del proyecto |
 | **Yanella Stefhany Salcedo Siguas** | Desarrollo del proyecto |
 
-> 👨‍🚀 Somos un equipo de desarrollo colaborativo. Las responsabilidades se irán distribuyendo conforme avance la implementación del proyecto.
+> 👥 Somos un equipo de desarrollo colaborativo. Las responsabilidades se irán distribuyendo conforme avance la implementación del proyecto.
 
 ---
 
