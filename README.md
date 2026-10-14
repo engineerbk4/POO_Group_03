@@ -68,7 +68,7 @@ El diseño busca mantener las responsabilidades separadas y permitir que las dif
 
 ### Diagrama UML
 
-📌 [Ver diagrama UML](docs/uml/UML_ Mision en Marte.drawio.png)
+📌 [Ver diagrama UML] (docs/uml/UML_ Mision en Marte.drawio.png)
 
 ---
 
