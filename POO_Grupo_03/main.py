@@ -1,0 +1,3 @@
+class Nivel:
+
+class Juego:
