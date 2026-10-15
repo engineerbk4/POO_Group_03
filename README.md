@@ -25,7 +25,7 @@ Más que construir solamente un videojuego, buscamos aplicar lo aprendido durant
 | **Rebeca Milagros Cerdan Dongo** | Desarrollo del proyecto |
 | **Yanella Stefhany Salcedo Siguas** | Desarrollo del proyecto |
 
-> 👥 Somos un equipo de desarrollo colaborativo. Las responsabilidades se irán distribuyendo conforme avance la implementación del proyecto.
+> Somos un equipo de desarrollo colaborativo. Las responsabilidades se irán distribuyendo conforme avance la implementación del proyecto.
 
 ---
 
@@ -39,12 +39,12 @@ Al llegar, descubre comunidades marcianas divididas, criaturas hostiles y peligr
 
 Durante su aventura, el explorador deberá:
 
-- 🪨 Recolectar minerales.
-- 🏗️ Construir bases para protegerse.
-- 🌪️ Sobrevivir a las tormentas espaciales.
-- 👽 Interactuar con los habitantes de Marte.
-- 🤝 Convertir algunos marcianos en aliados.
-- 🧭 Explorar el planeta y completar diferentes misiones.
+- Recolectar minerales.
+- Construir bases para protegerse.
+- Sobrevivir a las tormentas espaciales.
+- Interactuar con los habitantes de Marte.
+- Convertir algunos marcianos en aliados.
+- Explorar el planeta y completar diferentes misiones.
 
 La historia y las mecánicas irán creciendo junto con el desarrollo del proyecto.
 
@@ -68,7 +68,7 @@ El diseño busca mantener las responsabilidades separadas y permitir que las dif
 
 ### Diagrama UML
 
-📌 [Ver diagrama UML] (docs/uml/UML_ Mision en Marte.drawio.png)
+📌 [Ver diagrama UML] (docs/uml/UML_ Mision en Marte_Final_Corregido.jpg)
 
 ---
 
@@ -76,11 +76,11 @@ El diseño busca mantener las responsabilidades separadas y permitir que las dif
 
 | Tecnología | Uso |
 |---|---|
-| 🐍 Python | Lenguaje principal del proyecto |
-| 🎮 Pygame | Desarrollo de la interfaz y mecánicas del videojuego |
-| 🔀 Git | Control de versiones |
-| 🐙 GitHub | Desarrollo colaborativo y almacenamiento del proyecto |
-| 🌐 Itch.io | Plataforma considerada para la publicación del demo |
+| Python | Lenguaje principal del proyecto |
+| Pygame | Desarrollo de la interfaz y mecánicas del videojuego |
+| Git | Control de versiones |
+| GitHub | Desarrollo colaborativo y almacenamiento del proyecto |
+| Itch.io | Plataforma considerada para la publicación del demo |
 
 ---
 
