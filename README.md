@@ -1,74 +1,72 @@
-# POO_Group_03
+# 🚀 Misión en Marte
 
-We are Team 03, a group of four Computer Engineering students from Universidad Peruana Cayetano Heredia. This repository contains our final project for the **Object-Oriented Programming** course.
+We are **Team 03**, a group of four Computer Engineering students from Universidad Peruana Cayetano Heredia (UPCH). This repository contains our final project for the **Object-Oriented Programming** course (2026-2).
 
 We are Ready!
 
 ---
 
-## 🚀 ¡Bienvenidos a nuestra misión!
+## 🌌 La historia y el juego
 
-Este es el repositorio oficial de nuestro proyecto para el curso de **Programación Orientada a Objetos (POO)**.
+En un futuro donde el Sol comienza a morir, un explorador emprende una misión hacia Marte en busca de minerales que puedan ayudar a prolongar la supervivencia de su planeta. Sin embargo, Marte no está vacío: al llegar, descubre comunidades marcianas divididas, criaturas hostiles y peligrosas tormentas espaciales que cambian constantemente las condiciones del planeta.
 
-Nuestra misión es desarrollar un videojuego de aventura ambientado en Marte, combinando exploración, supervivencia, recolección, construcción e interacción con los habitantes del planeta.
-
-Más que construir solamente un videojuego, buscamos aplicar lo aprendido durante el curso y convertir nuestras ideas en un proyecto que pueda crecer durante el ciclo.
+El videojuego es una aventura 2D desarrollada en **Python + Pygame** donde el jugador deberá:
+- Recolectar combustible mineral.
+- Construir bases de refugio para protegerse y recuperar salud.
+- Sobrevivir a tormentas de radiación y lluvias de meteoritos.
+- Defenderse de criaturas marcianas hostiles.
+- Ganarse la confianza de marcianos asustados ofreciéndoles minerales para convertirlos en aliados.
 
 ---
 
-## 🧑‍🚀 Tripulación
+## ▶️ Cómo ejecutar el juego
 
-| Integrante | Área de participación |
+Requiere **Python 3.10** o superior. Ejecuta los siguientes comandos en tu terminal:
+
+    git clone https://github.com/engineerbk4/POO_Group_03.git
+    cd POO_Group_03
+    pip install -r requirements.txt
+    python main.py
+
+---
+
+## 🎮 Controles
+
+| Tecla | Acción |
 |---|---|
-| **Jose Junior Bances Panaque** | Desarrollo del proyecto |
-| **Josue Obed Barzola Reategui** | Desarrollo del proyecto |
-| **Rebeca Milagros Cerdan Dongo** | Desarrollo del proyecto |
-| **Yanella Stefhany Salcedo Siguas** | Desarrollo del proyecto |
-
-> Somos un equipo de desarrollo colaborativo. Las responsabilidades se irán distribuyendo conforme avance la implementación del proyecto.
-
----
-
-## 🌌 La historia
-
-En un futuro donde el Sol comienza a morir, un explorador emprende una misión hacia Marte en busca de minerales que puedan ayudar a prolongar la supervivencia de su planeta.
-
-Sin embargo, Marte no está vacío.
-
-Al llegar, descubre comunidades marcianas divididas, criaturas hostiles y peligrosas tormentas espaciales que cambian constantemente las condiciones del planeta.
-
-Durante su aventura, el explorador deberá:
-
-- Recolectar minerales.
-- Construir bases para protegerse.
-- Sobrevivir a las tormentas espaciales.
-- Interactuar con los habitantes de Marte.
-- Convertir algunos marcianos en aliados.
-- Explorar el planeta y completar diferentes misiones.
-
-La historia y las mecánicas irán creciendo junto con el desarrollo del proyecto.
+| **W A S D** / **Flechas** | Mover al explorador por el mapa |
+| **ESPACIO** | Construir una base (cuesta 3 minerales; protege y cura al estar cerca) |
+| **F** | Dar 1 mineral a un marciano asustado (verde) para volverlo aliado (azul) |
+| **ENTER** | Iniciar partida / Pasar al siguiente nivel / Reintentar |
+| **ESC** | Salir del juego |
 
 ---
 
-## 🎯 Objetivo del proyecto
+## 🗺️ Niveles de la misión
 
-Construir las bases de un videojuego utilizando la **Programación Orientada a Objetos**, aplicando un diseño organizado que permita desarrollar nuevas funcionalidades a medida que avance el proyecto.
-
-El proyecto se encuentra actualmente en una **etapa parcial de desarrollo**, por lo que esta versión representa nuestra arquitectura y las bases sobre las que construiremos las siguientes etapas del videojuego.
+1. **Supervivencia:** Reunir 10 unidades de combustible mineral mientras sobrevives a las amenazas.
+2. **Defensa:** Construir y mantener 3 bases en pie durante 40 segundos frente a las tormentas y criaturas.
+3. **Escape:** Reunir 6 unidades de combustible y llegar hasta el cohete para escapar de Marte.
 
 ---
 
-## 🧭 Arquitectura
+## 🧠 Arquitectura y Conceptos de POO aplicados
 
-El proyecto está diseñado mediante una arquitectura modular basada en clases y relaciones UML.
+El proyecto demuestra el dominio de los pilares de la Programación Orientada a Objetos mediante una arquitectura de **18 clases**, **6 pilares de POO** y **2 patrones de diseño**, evitando por completo el uso de condicionales de tipo (`isinstance`):
 
-Nuestra estructura contempla diferentes tipos de entidades del juego, niveles, estados de los personajes y sistemas encargados de crear eventos y amenazas.
-
-El diseño busca mantener las responsabilidades separadas y permitir que las diferentes partes del videojuego puedan desarrollarse y evolucionar de manera independiente.
+- **Encapsulamiento estricto:** Los atributos críticos (como `__salud`, `__inventarioMinerales` o `__registroTormentas`) utilizan *name mangling* (doble guion bajo) sin setters destructivos. El estado interno solo cambia mediante métodos validados como `recibirDano()` y `curar()`.
+- **Abstracción y Polimorfismo:** Uso del módulo `abc` y `@abstractmethod` en las clases base (`EntidadJuego`, `Nivel`, `Tormenta` y la interfaz `EstadoMarciano`). El Game Loop actualiza y dibuja todas las entidades llamando a `update()` y `render()` sin conocer su tipo concreto.
+- **Relaciones entre objetos:**
+  - **Composición:** `Nivel` crea, contiene y destruye sus propias entidades y tormentas.
+  - **Agregación:** `Juego` recibe sus instancias de `Nivel` desde afuera; `Marciano` recibe su estado.
+  - **Asociación:** `Base` y `CriaturaMarciana` conocen al `Explorador` para colaborar o interactuar con él.
+  - **Dependencia:** `Explorador` instancia una `Base` al construirla y `Nivel` solicita eventos a `TormentaFactory`.
+- **Patrón State:** Aplicado en `Marciano`. El personaje delega su comportamiento en su estado actual (`estadoActual.ejecutarAccion(self, dt)`), pasando de `MarcianoAsustado` (huye del jugador) a `MarcianoAliado` (lo sigue y lo cura) al recibir un mineral.
+- **Patrón Factory Method:** Implementado en `TormentaFactory` mediante un diccionario de registro dinámico, cumpliendo el principio *Open/Closed* para agregar nuevas tormentas en una sola línea dentro de `main.py`.
 
 ### Diagrama UML
 
-📌 [Ver diagrama UML] (docs/uml/UML_ Mision en Marte_Final_Corregido.jpg)
+📌 [Ver diagrama UML](docs/uml/UML_%20Mision%20en%20Marte_Final_Corregido.jpg)
 
 ---
 
@@ -76,28 +74,44 @@ El diseño busca mantener las responsabilidades separadas y permitir que las dif
 
 | Tecnología | Uso |
 |---|---|
-| Python | Lenguaje principal del proyecto |
-| Pygame | Desarrollo de la interfaz y mecánicas del videojuego |
-| Git | Control de versiones |
-| GitHub | Desarrollo colaborativo y almacenamiento del proyecto |
-| Itch.io | Plataforma considerada para la publicación del demo |
+| **Python 3** | Lenguaje principal (`abc`, `typing`, `math`, `random`) |
+| **Pygame** | Ventana gráfica, Game Loop, renderizado 2D y manejo de eventos |
+| **Draw.io** | Modelado del diagrama de clases UML |
+| **Visual Studio Code** | Entorno de desarrollo e integración |
+| **Git & GitHub** | Control de versiones con ramas `feature/` y revisión por Pull Requests |
 
 ---
 
-# 📂 Estructura del repositorio
+## 📂 Estructura del repositorio
 
-```text
-POO_Group_03/
-│
-├── docs/
-│   ├── uml/
-│   ├── academic report/
-│   └── presentation/
-│
-├── src/
-│
-├── assets/
-│
-├── README.md
-├── .gitignore
-└── LICENSE
+    POO_Group_03/
+    ├── main.py                  # Punto de entrada del juego
+    ├── requirements.txt         # Dependencias del proyecto (pygame)
+    ├── README.md                # Documentación principal
+    ├── LICENSE                  # Licencia MIT
+    ├── assets/                  # Recursos gráficos y capturas
+    ├── docs/                    # Informe académico, presentación y diagramas UML
+    └── src/                     # Código fuente modularizado
+        ├── entidades/           # EntidadJuego, Explorador, Mineral, Base, Criatura y State
+        ├── niveles/             # Nivel abstracto, Supervivencia, Defensa y Escape
+        ├── tormentas/           # Tormenta abstracta, Radiación, Meteoritos y Factory
+        ├── juego.py             # Controlador del Game Loop, fases y HUD
+        ├── config.py            # Constantes globales (resolución, FPS, colores)
+        └── graficos.py          # Funciones auxiliares de dibujo y transparencias
+
+---
+
+## 🧑‍🚀 Tripulación (Equipo 03)
+
+| Integrante | Módulos y responsabilidades a cargo |
+|---|---|
+| **Jose Junior Bances Panaque** | Arquitectura base, núcleo (`EntidadJuego`, `Explorador`, `Mineral`, `Base`), encapsulamiento e integración en Git. |
+| **Yanella Stefhany Salcedo Siguas** | Relaciones entre objetos, lógica de `Marciano`, `CriaturaMarciana` e implementación del **Patrón State**. |
+| **Rebeca Milagros Cerdan Dongo** | Jerarquía de `Tormenta`, **Patrón Factory Method** (`TormentaFactory`), polimorfismo y controlador `Juego`. |
+| **Josue Obed Barzola Reategui** | Implementación de `Nivel` (`Supervivencia`, `Defensa`, `Escape`), pruebas de demostración y documentación en `docs/`. |
+
+---
+
+## 📄 Licencia
+
+Este proyecto se distribuye bajo la licencia **MIT**. Consulta el archivo `LICENSE` para más detalles.
