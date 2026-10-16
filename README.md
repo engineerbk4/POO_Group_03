@@ -107,10 +107,10 @@ El proyecto demuestra el dominio de los pilares de la Programación Orientada a 
 
 | Integrante | Módulos y responsabilidades a cargo |
 |---|---|
-| **Jose Junior Bances Panaque** | Arquitectura base, núcleo (`EntidadJuego`, `Explorador`, `Mineral`, `Base`), encapsulamiento e integración en Git. |
-| **Yanella Stefhany Salcedo Siguas** | Relaciones entre objetos, lógica de `Marciano`, `CriaturaMarciana` e implementación del **Patrón State**. |
-| **Rebeca Milagros Cerdan Dongo** | Jerarquía de `Tormenta`, **Patrón Factory Method** (`TormentaFactory`), polimorfismo y controlador `Juego`. |
-| **Josue Obed Barzola Reategui** | Implementación de `Nivel` (`Supervivencia`, `Defensa`, `Escape`), pruebas de demostración y documentación en `docs/`. |
+| **Jose Junior Bances Panaque** | Núcleo, arquitectura base, config.py, integración Git y abstracción. |
+| **Yanella Stefhany Salcedo Siguas** | Lógica de niveles (niveles/) y condiciones de victoria. |
+| **Rebeca Milagros Cerdan Dongo** | Lógica ambiental, Patrón Factory y Game Loop (tormentas/, juego.py). |
+| **Josue Obed Barzola Reategui** | Sistema de entidades, inteligencia enemiga y Patrón State (entidades/). |
 
 ---
 
