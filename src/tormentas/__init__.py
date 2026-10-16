@@ -8,9 +8,9 @@ from typing import Dict, List, Tuple, Type
 
 import pygame
 
-import config
-from entidades import EntidadJuego
-from graficos import circulo_alpha
+from src import config
+from src.entidades import EntidadJuego
+from src.graficos import circulo_alpha
 
 
 class Tormenta(ABC):

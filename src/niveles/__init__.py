@@ -8,10 +8,10 @@ from typing import List, Optional, Tuple
 
 import pygame
 
-import config
-from entidades import (Base, CriaturaMarciana, EntidadJuego, Explorador, Marciano,
+from src import config
+from src.entidades import (Base, CriaturaMarciana, EntidadJuego, Explorador, Marciano,
                        MarcianoAsustado, Mineral)
-from tormentas import Tormenta, TormentaFactory
+from src.tormentas import Tormenta, TormentaFactory
 
 
 class Nivel(ABC):
