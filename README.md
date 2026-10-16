@@ -66,7 +66,7 @@ El proyecto demuestra el dominio de los pilares de la Programación Orientada a 
 
 ### Diagrama UML
 
-📌 [Ver diagrama UML](docs/uml/UML_%20Mision%20en%20Marte_Final_Corregido.jpg)
+📌 [Ver diagrama UML](docs/uml/UML_ Mision en Marte-Final-Corregido.jpg) 
 
 ---
 
