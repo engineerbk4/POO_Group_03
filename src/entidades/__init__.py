@@ -8,8 +8,8 @@ from typing import Optional, Tuple
 
 import pygame
 
-import config
-from graficos import Color, circulo_alpha
+from src import config
+from src.graficos import Color, circulo_alpha
 
 
 # ======================================================================

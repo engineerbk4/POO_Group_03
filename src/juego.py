@@ -6,8 +6,8 @@ from typing import List, Tuple
 
 import pygame
 
-import config
-from niveles import Nivel
+from src import config
+from src.niveles import Nivel
 
 
 class Juego:

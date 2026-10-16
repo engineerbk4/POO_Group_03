@@ -1,7 +1,7 @@
 """Punto de entrada de 'Misión en Marte'.  Ejecutar:  python main.py"""
-from juego import Juego
-from niveles import NivelDefensa, NivelEscape, NivelSupervivencia
-from tormentas import TormentaFactory, TormentaMeteoritos, TormentaRadiacion
+from src.juego import Juego
+from src.niveles import NivelDefensa, NivelEscape, NivelSupervivencia
+from src.tormentas import TormentaFactory, TormentaMeteoritos, TormentaRadiacion
 
 
 def main() -> None:
