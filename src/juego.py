@@ -7,6 +7,7 @@ from typing import List, Tuple
 import pygame
 
 from src import config
+from src.api import APIClient
 from src.niveles import Nivel
 
 
@@ -30,6 +31,9 @@ class Juego:
         self.__fase: str = "MENU"
         self.__corriendo: bool = True
         self.__fondo: pygame.Surface = self.__crearFondo()
+        # APIClient encapsula toda la lógica de red + fallback local
+        self.__api: APIClient = APIClient(url_base="", jugador="Explorador")
+        self.__rankingCache: list = []  # cargado justo antes de mostrar RANKING/GAME_OVER
 
     # ------------------------------------------------------------------
     def iniciar(self) -> None:
@@ -40,8 +44,9 @@ class Juego:
         self.__fase = "JUGANDO"
 
     def registrarHighScore(self) -> None:
-        """Por ahora local; luego se delegará en APIClient."""
+        """Guarda el puntaje localmente y lo envía a la API (con fallback)."""
         self.__highScore = max(self.__highScore, self.__puntajeTotal)
+        self.__api.enviar_puntaje(self.__puntajeTotal)
 
     def gameLoop(self) -> None:
         while self.__corriendo:
@@ -77,7 +82,11 @@ class Juego:
         elif self.__fase == "GAME_OVER" and tecla == pygame.K_RETURN:
             self.__nivelActual.reiniciar()
             self.__fase = "JUGANDO"
+        elif self.__fase == "GAME_OVER" and tecla == pygame.K_r:
+            self.__fase = "RANKING"
         elif self.__fase == "FIN" and tecla == pygame.K_RETURN:
+            self.__fase = "RANKING"
+        elif self.__fase == "RANKING" and tecla == pygame.K_RETURN:
             self.__fase = "MENU"
 
     def __leerMovimiento(self) -> Tuple[float, float]:
@@ -95,11 +104,15 @@ class Juego:
         explorador = self.__nivelActual.getExplorador()
         if not explorador.estaViva():
             self.registrarHighScore()
+            self.__rankingCache = self.__api.get_ranking()
             self.__fase = "GAME_OVER"
         elif self.__nivelActual.isCompletado():
             self.__puntajeTotal += 500 + explorador.getSalud() * 5
             self.registrarHighScore()
             ultimo = self.__indiceNivel == len(self.__niveles) - 1
+            if ultimo:
+                # Precargamos el ranking para que esté listo al mostrarse
+                self.__rankingCache = self.__api.get_ranking()
             self.__fase = "FIN" if ultimo else "NIVEL_COMPLETO"
 
     # ------------------------------------------------------------------
@@ -107,15 +120,22 @@ class Juego:
         self.__pantalla.blit(self.__fondo, (0, 0))
         if self.__fase == "MENU":
             self.__dibujarMenu()
+        elif self.__fase == "RANKING":
+            self.__dibujarPantallaRanking()
         else:
             self.__nivelActual.render(self.__pantalla)
             self.__dibujarHUD()
             if self.__fase == "NIVEL_COMPLETO":
                 self.__dibujarOverlay("¡NIVEL COMPLETADO!", "ENTER para el siguiente nivel", (120, 255, 150))
             elif self.__fase == "GAME_OVER":
-                self.__dibujarOverlay("MISIÓN FALLIDA", "ENTER para reintentar el nivel", (255, 110, 110))
+                self.__dibujarOverlay("MISIÓN FALLIDA", "ENTER = reintentar  ·  R = ver ranking", (255, 110, 110))
+                self.__dibujarRanking()
             elif self.__fase == "FIN":
-                self.__dibujarOverlay("¡ESCAPASTE DE MARTE!", f"Puntaje final: {self.__puntajeTotal} · ENTER = menú", (255, 230, 120))
+                self.__dibujarOverlay(
+                    "¡ESCAPASTE DE MARTE!",
+                    f"Puntaje final: {self.__puntajeTotal} · ENTER = ranking",
+                    (255, 230, 120),
+                )
         pygame.display.flip()
 
     def __texto(self, texto: str, fuente: pygame.font.Font, color: Tuple[int, int, int],
@@ -173,6 +193,69 @@ class Juego:
         self.__pantalla.blit(velo, (0, 0))
         self.__texto(titulo, self.__fuenteGrande, color, (config.ANCHO // 2, config.ALTO // 2 - 30))
         self.__texto(subtitulo, self.__fuente, (255, 255, 255), (config.ANCHO // 2, config.ALTO // 2 + 30))
+
+    def __dibujarRanking(self, subtitulo: bool = False) -> None:
+        """Dibuja el mini-ranking en la parte inferior del overlay actual."""
+        entradas = self.__rankingCache
+        if not entradas:
+            return
+        cx = config.ANCHO // 2
+        y0 = config.ALTO // 2 + 70
+        self.__texto("— TOP PUNTUACIONES —", self.__fuentePeque, (255, 230, 120), (cx, y0))
+        for i, e in enumerate(entradas[:5]):
+            jugador = e.get("jugador", "?")
+            pts = e.get("puntaje", 0)
+            color = (255, 215, 0) if i == 0 else (200, 200, 200)
+            self.__texto(f"{i + 1}. {jugador}  —  {pts} pts",
+                         self.__fuentePeque, color, (cx, y0 + 20 + i * 22))
+
+    def __dibujarPantallaRanking(self) -> None:
+        """Pantalla completa de ranking (fase RANKING)."""
+        velo = pygame.Surface((config.ANCHO, config.ALTO), pygame.SRCALPHA)
+        velo.fill((0, 0, 0, 200))
+        self.__pantalla.blit(velo, (0, 0))
+
+        cx = config.ANCHO // 2
+        self.__texto("🏆  TABLA DE PUNTUACIONES", self.__fuenteGrande,
+                     (255, 230, 120), (cx, 90))
+        self.__texto(f"Tu puntaje: {self.__puntajeTotal}",
+                     self.__fuente, (120, 255, 150), (cx, 155))
+
+        entradas = self.__rankingCache
+        if not entradas:
+            self.__texto("(sin registros todavía)", self.__fuente,
+                         (180, 180, 180), (cx, 240))
+        else:
+            # Encabezado de tabla
+            col_num = cx - 230
+            col_jug = cx - 100
+            col_pts = cx + 160
+            y_enc = 205
+            self.__texto("#", self.__fuentePeque, (255, 230, 120), (col_num, y_enc))
+            self.__texto("Jugador", self.__fuentePeque, (255, 230, 120), (col_jug, y_enc))
+            self.__texto("Puntaje", self.__fuentePeque, (255, 230, 120), (col_pts, y_enc))
+            pygame.draw.line(self.__pantalla, (100, 100, 100),
+                             (cx - 260, y_enc + 14), (cx + 220, y_enc + 14), 1)
+
+            for i, e in enumerate(entradas[:10]):
+                y = y_enc + 30 + i * 30
+                # Resaltar la fila con el puntaje actual del jugador
+                es_propio = e.get("puntaje") == self.__puntajeTotal and \
+                            e.get("jugador") == self.__api.get_jugador()
+                color_fila = (255, 220, 80) if (i == 0) else \
+                             (120, 255, 180) if es_propio else (220, 220, 220)
+                medalla = {0: "🥇", 1: "🥈", 2: "🥉"}.get(i, f"{i + 1}.")
+                self.__texto(medalla, self.__fuentePeque, color_fila, (col_num, y))
+                self.__texto(str(e.get("jugador", "?")), self.__fuentePeque, color_fila, (col_jug, y))
+                self.__texto(str(e.get("puntaje", 0)), self.__fuentePeque, color_fila, (col_pts, y))
+
+        # Pie
+        error = self.__api.get_ultimo_error()
+        if error:
+            self.__texto(f"⚠ Guardado local  ({error[:60]})",
+                         self.__fuentePeque, (255, 160, 60), (cx, config.ALTO - 60))
+        self.__texto("ENTER  →  volver al menú", self.__fuente,
+                     (160, 220, 255), (cx, config.ALTO - 35))
 
     def __crearFondo(self) -> pygame.Surface:
         sup = pygame.Surface((config.ANCHO, config.ALTO))
