@@ -136,10 +136,17 @@ class Juego:
             "F  →  dar 1 mineral a un marciano asustado para volverlo aliado",
             "ESC  →  salir",
             "",
-            "Cuidado: radiación (zona verde) y meteoritos (aros rojos).",
         ]
         for i, linea in enumerate(lineas):
             self.__texto(linea, self.__fuente, (255, 255, 255), (cx, 230 + i * 34))
+        # Advertencia de peligros resaltada en rojo
+        _y_aviso = 230 + len(lineas) * 34
+        self.__texto(
+            "Cuidado: radiación (zona verde) y meteoritos (aros rojos).",
+            self.__fuente,
+            (220, 50, 50),
+            (cx, _y_aviso),
+        )
         self.__texto("Presiona ENTER para comenzar", self.__fuente, (120, 255, 150), (cx, 560))
         if self.__highScore:
             self.__texto(f"Mejor puntaje: {self.__highScore}", self.__fuentePeque, (255, 230, 120), (cx, 595))
