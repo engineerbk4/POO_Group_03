@@ -402,8 +402,9 @@ class Marciano(EntidadJuego):
 # ======================================================================
 class CriaturaMarciana(EntidadJuego):
     def __init__(self, x: float, y: float, objetivo: Explorador,
-                 dano: int = 12, velocidad: float = 120.0) -> None:
-        super().__init__(x, y, 60, "criatura", 16)
+                 dano: int = 12, velocidad: float = 120.0,
+                 salud: int = 60, radio: int = 16) -> None:
+        super().__init__(x, y, salud, "criatura", radio)
         if dano <= 0 or velocidad <= 0:
             raise ValueError("dano y velocidad deben ser positivos")
         self.__dano: int = dano

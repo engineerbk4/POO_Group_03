@@ -1,4 +1,14 @@
-"""Clase Juego: controla el Game Loop, las fases, el HUD y el puntaje."""
+"""Clase Juego: controla el Game Loop, las fases, el HUD y el puntaje.
+
+Fases del juego:
+  MENU            Pantalla de inicio
+  TRANSICION      Texto narrativo previo a cada nivel (incluido el primero)
+  JUGANDO         Juego activo
+  NIVEL_COMPLETO  Overlay al superar un nivel intermedio
+  GAME_OVER       El explorador murió
+  FIN             Superados todos los niveles
+  RANKING         Tabla de puntuaciones completa
+"""
 from __future__ import annotations
 
 import random
@@ -22,6 +32,7 @@ class Juego:
         self.__fuenteGrande = pygame.font.Font(None, 72)
         self.__fuente = pygame.font.Font(None, 30)
         self.__fuentePeque = pygame.font.Font(None, 23)
+        self.__fuenteNarrativa = pygame.font.Font(None, 28)
         # AGREGACIÓN: los niveles se inyectan desde fuera y tienen vida propia
         self.__niveles: List[Nivel] = niveles
         self.__indiceNivel: int = 0
@@ -33,15 +44,17 @@ class Juego:
         self.__fondo: pygame.Surface = self.__crearFondo()
         # APIClient encapsula toda la lógica de red + fallback local
         self.__api: APIClient = APIClient(url_base="", jugador="Explorador")
-        self.__rankingCache: list = []  # cargado justo antes de mostrar RANKING/GAME_OVER
+        self.__rankingCache: list = []
+        # Transición narrativa
+        self.__textoNarrativa: str = ""
+        self.__tTransicion: float = 0.0          # tiempo acumulado en TRANSICION
 
     # ------------------------------------------------------------------
     def iniciar(self) -> None:
         self.__puntajeTotal = 0
         self.__indiceNivel = 0
         self.__nivelActual = self.__niveles[0]
-        self.__nivelActual.reiniciar()
-        self.__fase = "JUGANDO"
+        self.__iniciarTransicion()
 
     def registrarHighScore(self) -> None:
         """Guarda el puntaje localmente y lo envía a la API (con fallback)."""
@@ -57,6 +70,18 @@ class Juego:
         pygame.quit()
 
     # ------------------------------------------------------------------
+    def __iniciarTransicion(self) -> None:
+        """Prepara la fase TRANSICION con el texto narrativo del nivel siguiente."""
+        self.__textoNarrativa = self.__nivelActual.narrativa()
+        self.__tTransicion = 0.0
+        self.__fase = "TRANSICION"
+
+    def __confirmarTransicion(self) -> None:
+        """El jugador confirma la transición → se inicia el nivel."""
+        self.__nivelActual.reiniciar()
+        self.__fase = "JUGANDO"
+
+    # ------------------------------------------------------------------
     def __procesarEventos(self) -> None:
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
@@ -69,6 +94,8 @@ class Juego:
             self.__corriendo = False
         elif self.__fase == "MENU" and tecla == pygame.K_RETURN:
             self.iniciar()
+        elif self.__fase == "TRANSICION" and tecla == pygame.K_RETURN:
+            self.__confirmarTransicion()
         elif self.__fase == "JUGANDO":
             if tecla == pygame.K_SPACE:
                 self.__nivelActual.construirBase()
@@ -77,8 +104,7 @@ class Juego:
         elif self.__fase == "NIVEL_COMPLETO" and tecla == pygame.K_RETURN:
             self.__indiceNivel += 1
             self.__nivelActual = self.__niveles[self.__indiceNivel]
-            self.__nivelActual.reiniciar()
-            self.__fase = "JUGANDO"
+            self.__iniciarTransicion()
         elif self.__fase == "GAME_OVER" and tecla == pygame.K_RETURN:
             self.__nivelActual.reiniciar()
             self.__fase = "JUGANDO"
@@ -96,6 +122,12 @@ class Juego:
         return float(dx), float(dy)
 
     def __actualizar(self, dt: float) -> None:
+        if self.__fase == "TRANSICION":
+            self.__tTransicion += dt
+            # Auto-avanzar tras 6 s si el jugador no presionó ENTER
+            if self.__tTransicion >= 6.0:
+                self.__confirmarTransicion()
+            return
         if self.__fase != "JUGANDO":
             return
         dx, dy = self.__leerMovimiento()
@@ -111,7 +143,6 @@ class Juego:
             self.registrarHighScore()
             ultimo = self.__indiceNivel == len(self.__niveles) - 1
             if ultimo:
-                # Precargamos el ranking para que esté listo al mostrarse
                 self.__rankingCache = self.__api.get_ranking()
             self.__fase = "FIN" if ultimo else "NIVEL_COMPLETO"
 
@@ -120,16 +151,26 @@ class Juego:
         self.__pantalla.blit(self.__fondo, (0, 0))
         if self.__fase == "MENU":
             self.__dibujarMenu()
+        elif self.__fase == "TRANSICION":
+            self.__dibujarTransicion()
         elif self.__fase == "RANKING":
             self.__dibujarPantallaRanking()
         else:
             self.__nivelActual.render(self.__pantalla)
             self.__dibujarHUD()
             if self.__fase == "NIVEL_COMPLETO":
-                self.__dibujarOverlay("¡NIVEL COMPLETADO!", "ENTER para el siguiente nivel", (120, 255, 150))
+                self.__dibujarOverlay(
+                    "¡NIVEL COMPLETADO!",
+                    "ENTER para continuar",
+                    (120, 255, 150),
+                )
             elif self.__fase == "GAME_OVER":
-                self.__dibujarOverlay("MISIÓN FALLIDA", "ENTER = reintentar  ·  R = ver ranking", (255, 110, 110))
-                self.__dibujarRanking()
+                self.__dibujarOverlay(
+                    "MISIÓN FALLIDA",
+                    "ENTER = reintentar  ·  R = ver ranking",
+                    (255, 110, 110),
+                )
+                self.__dibujarMiniRanking()
             elif self.__fase == "FIN":
                 self.__dibujarOverlay(
                     "¡ESCAPASTE DE MARTE!",
@@ -138,6 +179,7 @@ class Juego:
                 )
         pygame.display.flip()
 
+    # ------------------------------------------------------------------
     def __texto(self, texto: str, fuente: pygame.font.Font, color: Tuple[int, int, int],
                 centro: Tuple[int, int]) -> None:
         sombra = fuente.render(texto, True, (0, 0, 0))
@@ -145,6 +187,7 @@ class Juego:
         self.__pantalla.blit(sombra, sombra.get_rect(center=(centro[0] + 2, centro[1] + 2)))
         self.__pantalla.blit(img, img.get_rect(center=centro))
 
+    # ------------------------------------------------------------------
     def __dibujarMenu(self) -> None:
         cx = config.ANCHO // 2
         self.__texto("MISIÓN EN MARTE", self.__fuenteGrande, (255, 220, 120), (cx, 130))
@@ -171,31 +214,81 @@ class Juego:
         if self.__highScore:
             self.__texto(f"Mejor puntaje: {self.__highScore}", self.__fuentePeque, (255, 230, 120), (cx, 595))
 
+    # ------------------------------------------------------------------
+    def __dibujarTransicion(self) -> None:
+        """Pantalla de transición narrativa antes de cada nivel."""
+        velo = pygame.Surface((config.ANCHO, config.ALTO), pygame.SRCALPHA)
+        velo.fill((0, 0, 0, 210))
+        self.__pantalla.blit(velo, (0, 0))
+
+        cx = config.ANCHO // 2
+        num = self.__nivelActual.getNumero()
+        nombres = {
+            1: "Supervivencia",
+            2: "Defensa de la Base",
+            3: "El Gran Escape",
+            4: "Tormenta Permanente",
+            5: "El Jefe Final",
+        }
+        nombre_nivel = nombres.get(num, f"Nivel {num}")
+
+        # Encabezado
+        self.__texto(f"— Nivel {num}: {nombre_nivel} —",
+                     self.__fuenteGrande, (255, 220, 120), (cx, 160))
+
+        # Puntaje acumulado
+        self.__texto(f"Puntaje acumulado: {self.__puntajeTotal}",
+                     self.__fuente, (120, 255, 150), (cx, 220))
+
+        # Texto narrativo (hasta 4 líneas)
+        lineas_narrativa = self.__textoNarrativa.split("\n")
+        for i, linea in enumerate(lineas_narrativa[:4]):
+            self.__texto(linea.strip(), self.__fuenteNarrativa,
+                         (220, 220, 220), (cx, 300 + i * 36))
+
+        # Barra de auto-avance
+        progreso = min(1.0, self.__tTransicion / 6.0)
+        ancho_barra = 400
+        xb = cx - ancho_barra // 2
+        yb = config.ALTO - 90
+        pygame.draw.rect(self.__pantalla, (50, 50, 50), (xb, yb, ancho_barra, 10))
+        pygame.draw.rect(self.__pantalla, (120, 220, 255),
+                         (xb, yb, int(ancho_barra * progreso), 10))
+
+        self.__texto("ENTER para comenzar", self.__fuente,
+                     (160, 220, 255), (cx, config.ALTO - 55))
+
+    # ------------------------------------------------------------------
     def __dibujarHUD(self) -> None:
         nivel = self.__nivelActual
         explorador = nivel.getExplorador()
         pygame.draw.rect(self.__pantalla, (20, 14, 18), (0, 0, config.ANCHO, config.HUD_ALTO))
         self.__texto(f"Nivel {nivel.getNumero()}", self.__fuente, (255, 255, 255), (50, 15))
-        # barra de salud
+        # Barra de salud
         pygame.draw.rect(self.__pantalla, (90, 20, 20), (100, 7, 170, 16))
         ancho = int(170 * explorador.getSalud() / explorador.getSaludMaxima())
         pygame.draw.rect(self.__pantalla, (60, 220, 100), (100, 7, ancho, 16))
         pygame.draw.rect(self.__pantalla, (255, 255, 255), (100, 7, 170, 16), 2)
         self.__texto(f"Minerales: {explorador.getInventarioMinerales()}", self.__fuente,
                      (110, 240, 225), (370, 15))
-        self.__texto(f"Puntaje: {self.__puntajeTotal}", self.__fuente, (255, 230, 120), (config.ANCHO - 120, 15))
-        self.__texto(nivel.descripcionObjetivo(), self.__fuentePeque, (255, 255, 255),
-                     (config.ANCHO // 2, 38))
+        self.__texto(f"Puntaje: {self.__puntajeTotal}", self.__fuente,
+                     (255, 230, 120), (config.ANCHO - 120, 15))
+        self.__texto(nivel.descripcionObjetivo(), self.__fuentePeque,
+                     (255, 255, 255), (config.ANCHO // 2, 38))
 
-    def __dibujarOverlay(self, titulo: str, subtitulo: str, color: Tuple[int, int, int]) -> None:
+    # ------------------------------------------------------------------
+    def __dibujarOverlay(self, titulo: str, subtitulo: str,
+                         color: Tuple[int, int, int]) -> None:
         velo = pygame.Surface((config.ANCHO, config.ALTO), pygame.SRCALPHA)
         velo.fill((0, 0, 0, 150))
         self.__pantalla.blit(velo, (0, 0))
-        self.__texto(titulo, self.__fuenteGrande, color, (config.ANCHO // 2, config.ALTO // 2 - 30))
-        self.__texto(subtitulo, self.__fuente, (255, 255, 255), (config.ANCHO // 2, config.ALTO // 2 + 30))
+        self.__texto(titulo, self.__fuenteGrande, color,
+                     (config.ANCHO // 2, config.ALTO // 2 - 30))
+        self.__texto(subtitulo, self.__fuente, (255, 255, 255),
+                     (config.ANCHO // 2, config.ALTO // 2 + 30))
 
-    def __dibujarRanking(self, subtitulo: bool = False) -> None:
-        """Dibuja el mini-ranking en la parte inferior del overlay actual."""
+    def __dibujarMiniRanking(self) -> None:
+        """Mini-ranking de 5 entradas debajo del overlay GAME_OVER."""
         entradas = self.__rankingCache
         if not entradas:
             return
@@ -226,7 +319,6 @@ class Juego:
             self.__texto("(sin registros todavía)", self.__fuente,
                          (180, 180, 180), (cx, 240))
         else:
-            # Encabezado de tabla
             col_num = cx - 230
             col_jug = cx - 100
             col_pts = cx + 160
@@ -236,20 +328,19 @@ class Juego:
             self.__texto("Puntaje", self.__fuentePeque, (255, 230, 120), (col_pts, y_enc))
             pygame.draw.line(self.__pantalla, (100, 100, 100),
                              (cx - 260, y_enc + 14), (cx + 220, y_enc + 14), 1)
-
             for i, e in enumerate(entradas[:10]):
                 y = y_enc + 30 + i * 30
-                # Resaltar la fila con el puntaje actual del jugador
-                es_propio = e.get("puntaje") == self.__puntajeTotal and \
-                            e.get("jugador") == self.__api.get_jugador()
-                color_fila = (255, 220, 80) if (i == 0) else \
+                es_propio = (e.get("puntaje") == self.__puntajeTotal and
+                             e.get("jugador") == self.__api.get_jugador())
+                color_fila = (255, 220, 80) if i == 0 else \
                              (120, 255, 180) if es_propio else (220, 220, 220)
                 medalla = {0: "🥇", 1: "🥈", 2: "🥉"}.get(i, f"{i + 1}.")
                 self.__texto(medalla, self.__fuentePeque, color_fila, (col_num, y))
-                self.__texto(str(e.get("jugador", "?")), self.__fuentePeque, color_fila, (col_jug, y))
-                self.__texto(str(e.get("puntaje", 0)), self.__fuentePeque, color_fila, (col_pts, y))
+                self.__texto(str(e.get("jugador", "?")), self.__fuentePeque,
+                             color_fila, (col_jug, y))
+                self.__texto(str(e.get("puntaje", 0)), self.__fuentePeque,
+                             color_fila, (col_pts, y))
 
-        # Pie
         error = self.__api.get_ultimo_error()
         if error:
             self.__texto(f"⚠ Guardado local  ({error[:60]})",
@@ -257,14 +348,20 @@ class Juego:
         self.__texto("ENTER  →  volver al menú", self.__fuente,
                      (160, 220, 255), (cx, config.ALTO - 35))
 
+    # ------------------------------------------------------------------
     def __crearFondo(self) -> pygame.Surface:
         sup = pygame.Surface((config.ANCHO, config.ALTO))
         sup.fill((150, 72, 45))
         rng = random.Random(7)
         for _ in range(55):
-            cx, cy, r = rng.randint(0, config.ANCHO), rng.randint(0, config.ALTO), rng.randint(12, 55)
+            cx, cy, r = (rng.randint(0, config.ANCHO),
+                         rng.randint(0, config.ALTO),
+                         rng.randint(12, 55))
             pygame.draw.circle(sup, (138, 64, 39), (cx, cy), r)
             pygame.draw.circle(sup, (122, 55, 33), (cx, cy), r, 3)
         for _ in range(260):
-            pygame.draw.circle(sup, (170, 92, 60), (rng.randint(0, config.ANCHO), rng.randint(0, config.ALTO)), rng.randint(1, 3))
+            pygame.draw.circle(sup, (170, 92, 60),
+                               (rng.randint(0, config.ANCHO),
+                                rng.randint(0, config.ALTO)),
+                               rng.randint(1, 3))
         return sup

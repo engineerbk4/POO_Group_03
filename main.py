@@ -1,6 +1,12 @@
 """Punto de entrada de 'Misión en Marte'.  Ejecutar:  python main.py"""
 from src.juego import Juego
-from src.niveles import NivelDefensa, NivelEscape, NivelSupervivencia
+from src.niveles import (
+    NivelBoss,
+    NivelDefensa,
+    NivelEscape,
+    NivelSupervivencia,
+    NivelTormenta,
+)
 from src.tormentas import TormentaFactory, TormentaMeteoritos, TormentaRadiacion
 
 
@@ -11,7 +17,13 @@ def main() -> None:
     fabrica.registrarTormenta("radiacion", TormentaRadiacion)
     fabrica.registrarTormenta("meteoritos", TormentaMeteoritos)
 
-    niveles = [NivelSupervivencia(fabrica), NivelDefensa(fabrica), NivelEscape(fabrica)]
+    niveles = [
+        NivelSupervivencia(fabrica),
+        NivelDefensa(fabrica),
+        NivelEscape(fabrica),
+        NivelTormenta(fabrica),
+        NivelBoss(fabrica),
+    ]
     Juego(niveles).gameLoop()
 
 
