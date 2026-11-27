@@ -1,180 +1,218 @@
-"""Clase Juego: controla el Game Loop, las fases, el HUD y el puntaje."""
+"""Clase Juego: coordina el Game Loop y delega todo lo demás.
+
+Responsabilidad única (SRP): ejecutar el ciclo eventos -> actualizar -> dibujar
+y mantener la partida en curso (nivel actual, puntaje y Nombre del Piloto). Todo
+lo demás se delega en colaboradores especializados que recibe por inyección de
+dependencias:
+
+* ``EstadoJuego``       -> flujo del juego (patrón State: menú, narrativa, jugando, pausa...)
+* ``InterfazJuego``     -> dibujo de fondo, HUD, menús, narrativa y ranking
+* ``APIClient``         -> comunicación HTTP
+* ``RepositorioPuntajes`` -> persistencia JSON del Top 5
+* ``GestorAudio``       -> efectos de sonido
+
+Relaciones UML: AGREGACIÓN ``Juego o-- Nivel`` (los niveles llegan desde
+``main.py`` y tienen vida propia) y ASOCIACIÓN con los servicios inyectados.
+"""
 from __future__ import annotations
 
-import random
-from typing import List, Tuple
+from typing import List, Optional
 
 import pygame
 
 from src import config
-from src.niveles import Nivel
+from src.estados_juego.estado_juego import (EstadoJuego, EstadoJugando,
+                                            EstadoMenu, EstadoNarrativa)
+from src.excepciones import PersistenciaError
+from src.niveles.nivel import Nivel
+from src.servicios.api_client import APIClient
+from src.servicios.gestor_audio import GestorAudio
+from src.servicios.repositorio_puntajes import (JUGADOR_MAX_CARACTERES,
+                                                JUGADOR_POR_DEFECTO,
+                                                RegistroPuntaje,
+                                                RepositorioPuntajes,
+                                                normalizarJugador)
+from src.vista.interfaz import InterfazJuego
 
 
 class Juego:
-    def __init__(self, niveles: List[Nivel]) -> None:
+    def __init__(self, niveles: List[Nivel], apiClient: APIClient,
+                 repositorio: RepositorioPuntajes, interfaz: InterfazJuego,
+                 audio: GestorAudio) -> None:
         if not niveles:
             raise ValueError("el juego necesita al menos un nivel")
         pygame.init()
         self.__pantalla: pygame.Surface = pygame.display.set_mode((config.ANCHO, config.ALTO))
         pygame.display.set_caption(config.TITULO)
         self.__reloj: pygame.time.Clock = pygame.time.Clock()
-        self.__fuenteGrande = pygame.font.Font(None, 72)
-        self.__fuente = pygame.font.Font(None, 30)
-        self.__fuentePeque = pygame.font.Font(None, 23)
         # AGREGACIÓN: los niveles se inyectan desde fuera y tienen vida propia
         self.__niveles: List[Nivel] = niveles
+        # servicios inyectados (bajo acoplamiento: Juego solo conoce sus interfaces públicas)
+        self.__api: APIClient = apiClient
+        self.__repositorio: RepositorioPuntajes = repositorio
+        self.__interfaz: InterfazJuego = interfaz
+        self.__audio: GestorAudio = audio
+        # partida en curso
         self.__indiceNivel: int = 0
-        self.__nivelActual: Nivel = niveles[0]
         self.__puntajeTotal: int = 0
-        self.__highScore: int = 0
-        self.__fase: str = "MENU"
+        self.__jugador: str = JUGADOR_POR_DEFECTO
+        self.__universidad: str = config.UNIVERSIDAD_POR_DEFECTO
+        self.__registroPartida: Optional[RegistroPuntaje] = None
+        self.__top5: List[RegistroPuntaje] = []
         self.__corriendo: bool = True
-        self.__fondo: pygame.Surface = self.__crearFondo()
+        # contexto del patrón State
+        self.__estado: EstadoJuego = EstadoMenu()
+        self.__refrescarTop5()
+        self.__estado.alEntrar(self)
 
     # ------------------------------------------------------------------
-    def iniciar(self) -> None:
-        self.__puntajeTotal = 0
-        self.__indiceNivel = 0
-        self.__nivelActual = self.__niveles[0]
-        self.__nivelActual.reiniciar()
-        self.__fase = "JUGANDO"
-
-    def registrarHighScore(self) -> None:
-        """Por ahora local; luego se delegará en APIClient."""
-        self.__highScore = max(self.__highScore, self.__puntajeTotal)
-
+    # Game Loop
+    # ------------------------------------------------------------------
     def gameLoop(self) -> None:
         while self.__corriendo:
             dt = min(self.__reloj.tick(config.FPS) / 1000.0, 0.05)
-            self.__procesarEventos()
-            self.__actualizar(dt)
-            self.__dibujar()
+            self.procesarEventos()
+            self.actualizar(dt)
+            self.dibujar()
         pygame.quit()
 
-    # ------------------------------------------------------------------
-    def __procesarEventos(self) -> None:
+    def procesarEventos(self) -> None:
         for evento in pygame.event.get():
-            if evento.type == pygame.QUIT:
-                self.__corriendo = False
-            elif evento.type == pygame.KEYDOWN:
-                self.__alPresionarTecla(evento.key)
+            self.__estado.manejar_eventos(self, evento)
 
-    def __alPresionarTecla(self, tecla: int) -> None:
-        if tecla == pygame.K_ESCAPE:
-            self.__corriendo = False
-        elif self.__fase == "MENU" and tecla == pygame.K_RETURN:
-            self.iniciar()
-        elif self.__fase == "JUGANDO":
-            if tecla == pygame.K_SPACE:
-                self.__nivelActual.construirBase()
-            elif tecla == pygame.K_f:
-                self.__nivelActual.ofrecerMineral()
-        elif self.__fase == "NIVEL_COMPLETO" and tecla == pygame.K_RETURN:
-            self.__indiceNivel += 1
-            self.__nivelActual = self.__niveles[self.__indiceNivel]
-            self.__nivelActual.reiniciar()
-            self.__fase = "JUGANDO"
-        elif self.__fase == "GAME_OVER" and tecla == pygame.K_RETURN:
-            self.__nivelActual.reiniciar()
-            self.__fase = "JUGANDO"
-        elif self.__fase == "FIN" and tecla == pygame.K_RETURN:
-            self.__fase = "MENU"
+    def actualizar(self, dt: float) -> None:
+        self.__estado.actualizar(self, dt)
 
-    def __leerMovimiento(self) -> Tuple[float, float]:
-        teclas = pygame.key.get_pressed()
-        dx = (teclas[pygame.K_d] or teclas[pygame.K_RIGHT]) - (teclas[pygame.K_a] or teclas[pygame.K_LEFT])
-        dy = (teclas[pygame.K_s] or teclas[pygame.K_DOWN]) - (teclas[pygame.K_w] or teclas[pygame.K_UP])
-        return float(dx), float(dy)
-
-    def __actualizar(self, dt: float) -> None:
-        if self.__fase != "JUGANDO":
-            return
-        dx, dy = self.__leerMovimiento()
-        self.__nivelActual.moverExplorador(dx, dy)
-        self.__nivelActual.update(dt)
-        explorador = self.__nivelActual.getExplorador()
-        if not explorador.estaViva():
-            self.registrarHighScore()
-            self.__fase = "GAME_OVER"
-        elif self.__nivelActual.isCompletado():
-            self.__puntajeTotal += 500 + explorador.getSalud() * 5
-            self.registrarHighScore()
-            ultimo = self.__indiceNivel == len(self.__niveles) - 1
-            self.__fase = "FIN" if ultimo else "NIVEL_COMPLETO"
-
-    # ------------------------------------------------------------------
-    def __dibujar(self) -> None:
-        self.__pantalla.blit(self.__fondo, (0, 0))
-        if self.__fase == "MENU":
-            self.__dibujarMenu()
-        else:
-            self.__nivelActual.render(self.__pantalla)
-            self.__dibujarHUD()
-            if self.__fase == "NIVEL_COMPLETO":
-                self.__dibujarOverlay("¡NIVEL COMPLETADO!", "ENTER para el siguiente nivel", (120, 255, 150))
-            elif self.__fase == "GAME_OVER":
-                self.__dibujarOverlay("MISIÓN FALLIDA", "ENTER para reintentar el nivel", (255, 110, 110))
-            elif self.__fase == "FIN":
-                self.__dibujarOverlay("¡ESCAPASTE DE MARTE!", f"Puntaje final: {self.__puntajeTotal} · ENTER = menú", (255, 230, 120))
+    def dibujar(self) -> None:
+        self.__estado.dibujar(self, self.__pantalla)
         pygame.display.flip()
 
-    def __texto(self, texto: str, fuente: pygame.font.Font, color: Tuple[int, int, int],
-                centro: Tuple[int, int]) -> None:
-        sombra = fuente.render(texto, True, (0, 0, 0))
-        img = fuente.render(texto, True, color)
-        self.__pantalla.blit(sombra, sombra.get_rect(center=(centro[0] + 2, centro[1] + 2)))
-        self.__pantalla.blit(img, img.get_rect(center=centro))
+    def terminar(self) -> None:
+        self.__corriendo = False
 
-    def __dibujarMenu(self) -> None:
-        cx = config.ANCHO // 2
-        self.__texto("MISIÓN EN MARTE", self.__fuenteGrande, (255, 220, 120), (cx, 130))
-        lineas = [
-            "Recolecta combustible, sobrevive a las tormentas y escapa del planeta.",
-            "",
-            "WASD / Flechas  →  mover al explorador",
-            "ESPACIO  →  construir base (cuesta 3 minerales; cura y protege)",
-            "F  →  dar 1 mineral a un marciano asustado para volverlo aliado",
-            "ESC  →  salir",
-            "",
-            "Cuidado: radiación (zona verde) y meteoritos (aros rojos).",
-        ]
-        for i, linea in enumerate(lineas):
-            self.__texto(linea, self.__fuente, (255, 255, 255), (cx, 230 + i * 34))
-        self.__texto("Presiona ENTER para comenzar", self.__fuente, (120, 255, 150), (cx, 560))
-        if self.__highScore:
-            self.__texto(f"Mejor puntaje: {self.__highScore}", self.__fuentePeque, (255, 230, 120), (cx, 595))
+    def estaCorriendo(self) -> bool:
+        return self.__corriendo
 
-    def __dibujarHUD(self) -> None:
-        nivel = self.__nivelActual
-        explorador = nivel.getExplorador()
-        pygame.draw.rect(self.__pantalla, (20, 14, 18), (0, 0, config.ANCHO, config.HUD_ALTO))
-        self.__texto(f"Nivel {nivel.getNumero()}", self.__fuente, (255, 255, 255), (50, 15))
-        # barra de salud
-        pygame.draw.rect(self.__pantalla, (90, 20, 20), (100, 7, 170, 16))
-        ancho = int(170 * explorador.getSalud() / explorador.getSaludMaxima())
-        pygame.draw.rect(self.__pantalla, (60, 220, 100), (100, 7, ancho, 16))
-        pygame.draw.rect(self.__pantalla, (255, 255, 255), (100, 7, 170, 16), 2)
-        self.__texto(f"Minerales: {explorador.getInventarioMinerales()}", self.__fuente,
-                     (110, 240, 225), (370, 15))
-        self.__texto(f"Puntaje: {self.__puntajeTotal}", self.__fuente, (255, 230, 120), (config.ANCHO - 120, 15))
-        self.__texto(nivel.descripcionObjetivo(), self.__fuentePeque, (255, 255, 255),
-                     (config.ANCHO // 2, 38))
+    # ------------------------------------------------------------------
+    # Patrón State: transición entre estados
+    # ------------------------------------------------------------------
+    def cambiarEstado(self, nuevo: EstadoJuego) -> None:
+        self.__estado.alSalir(self)
+        self.__estado = nuevo
+        nuevo.alEntrar(self)
 
-    def __dibujarOverlay(self, titulo: str, subtitulo: str, color: Tuple[int, int, int]) -> None:
-        velo = pygame.Surface((config.ANCHO, config.ALTO), pygame.SRCALPHA)
-        velo.fill((0, 0, 0, 150))
-        self.__pantalla.blit(velo, (0, 0))
-        self.__texto(titulo, self.__fuenteGrande, color, (config.ANCHO // 2, config.ALTO // 2 - 30))
-        self.__texto(subtitulo, self.__fuente, (255, 255, 255), (config.ANCHO // 2, config.ALTO // 2 + 30))
+    def getEstado(self) -> EstadoJuego:
+        return self.__estado
 
-    def __crearFondo(self) -> pygame.Surface:
-        sup = pygame.Surface((config.ANCHO, config.ALTO))
-        sup.fill((150, 72, 45))
-        rng = random.Random(7)
-        for _ in range(55):
-            cx, cy, r = rng.randint(0, config.ANCHO), rng.randint(0, config.ALTO), rng.randint(12, 55)
-            pygame.draw.circle(sup, (138, 64, 39), (cx, cy), r)
-            pygame.draw.circle(sup, (122, 55, 33), (cx, cy), r, 3)
-        for _ in range(260):
-            pygame.draw.circle(sup, (170, 92, 60), (rng.randint(0, config.ANCHO), rng.randint(0, config.ALTO)), rng.randint(1, 3))
-        return sup
+    # ------------------------------------------------------------------
+    # Flujo de la partida (lo invocan los estados)
+    # ------------------------------------------------------------------
+    def iniciarPartida(self) -> None:
+        """Reinicia la partida y abre el prólogo; al terminarlo, la narrativa llama a comenzarNivelActual()."""
+        self.__puntajeTotal = 0
+        self.__indiceNivel = 0
+        self.__registroPartida = None
+        self.cambiarEstado(EstadoNarrativa.prologo())
+
+    def comenzarNivelActual(self) -> None:
+        self.__comenzarNivel()
+
+    def avanzarNivel(self) -> None:
+        self.__indiceNivel += 1
+        self.__comenzarNivel()
+
+    def reintentarNivel(self) -> None:
+        self.__comenzarNivel()
+
+    def volverAlMenu(self) -> None:
+        self.cambiarEstado(EstadoMenu())
+
+    def __comenzarNivel(self) -> None:
+        self.getNivelActual().reiniciar()
+        self.__interfaz.limpiarMensajes()
+        self.cambiarEstado(EstadoJugando())
+
+    def sumarPuntaje(self, puntos: int) -> None:
+        self.__puntajeTotal += max(0, puntos)
+
+    def esUltimoNivel(self) -> bool:
+        return self.__indiceNivel == len(self.__niveles) - 1
+
+    def finalizarPartida(self) -> None:
+        """Guarda el puntaje en el Top 5. Un fallo de disco nunca interrumpe el juego."""
+        if self.__puntajeTotal > 0:
+            try:
+                self.__registroPartida = self.__repositorio.registrar(
+                    self.__puntajeTotal, self.__universidad, config.PAIS,
+                    self.__registroPartida, jugador=self.__jugador)
+            except PersistenciaError as error:
+                print(f"[puntajes] no se pudo guardar el puntaje: {error}")
+        self.__refrescarTop5()
+
+    def __refrescarTop5(self) -> None:
+        try:
+            self.__top5 = self.__repositorio.top()
+        except PersistenciaError as error:
+            print(f"[puntajes] no se pudo leer el ranking: {error}")
+            self.__top5 = []
+
+    # ------------------------------------------------------------------
+    # Nombre del piloto
+    # ------------------------------------------------------------------
+    def setJugador(self, nombre: str) -> None:
+        """Valida el nombre (letras/números/espacios, máx. 14); si queda vacío usa "Explorador"."""
+        self.__jugador = normalizarJugador(nombre)
+
+    def getJugador(self) -> str:
+        return self.__jugador
+
+    @staticmethod
+    def getNombrePorDefecto() -> str:
+        return JUGADOR_POR_DEFECTO
+
+    @staticmethod
+    def getLongitudMaxNombre() -> int:
+        return JUGADOR_MAX_CARACTERES
+
+    # ------------------------------------------------------------------
+    # Universidad representante (datos que vienen de APIClient)
+    # ------------------------------------------------------------------
+    def alternarUniversidad(self, paso: int = 1) -> None:
+        lista = self.__api.universidades()
+        if not lista:
+            return
+        try:
+            indice = lista.index(self.__universidad)
+        except ValueError:
+            indice = -1 if paso > 0 else 0
+        self.__universidad = lista[(indice + paso) % len(lista)]
+
+    # ------------------------------------------------------------------
+    # Consultas para los estados y la vista
+    # ------------------------------------------------------------------
+    def getNivelActual(self) -> Nivel:
+        return self.__niveles[self.__indiceNivel]
+
+    def getIndiceNivel(self) -> int:
+        return self.__indiceNivel
+
+    def getPuntajeTotal(self) -> int:
+        return self.__puntajeTotal
+
+    def getUniversidad(self) -> str:
+        return self.__universidad
+
+    def getUniversidades(self) -> List[str]:
+        return self.__api.universidades()
+
+    def getEstadoApi(self) -> str:
+        return self.__api.estado()
+
+    def getTop5(self) -> List[RegistroPuntaje]:
+        return list(self.__top5)
+
+    def getInterfaz(self) -> InterfazJuego:
+        return self.__interfaz
+
+    def getAudio(self) -> GestorAudio:
+        return self.__audio
