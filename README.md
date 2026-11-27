@@ -1,119 +1,114 @@
 # 🚀 Misión en Marte
 
-We are **Team 03**, a group of four Computer Engineering students from Universidad Peruana Cayetano Heredia (UPCH). This repository contains our final project for the **Object-Oriented Programming** course (2026-2).
+Videojuego 2D en **Python + Pygame** desarrollado por el **Equipo 03** (Ingeniería Informática, UPCH) como proyecto final del curso de **Programación Orientada a Objetos** (ciclo 2026-2).
 
-We are Ready!
+El jugador controla a un **Explorador** que recolecta combustible, construye bases de refugio, convierte a marcianos asustados en aliados y sobrevive a tormentas de radiación, lluvias de meteoritos, tormentas de arena y criaturas hostiles hasta escapar del planeta. Antes de jugar elige la **universidad que representa** (datos de una API pública) y su puntaje entra en un **Top 5 histórico**.
 
----
+## ▶️ Cómo ejecutarlo
 
-## 🌌 La historia y el juego
+```bash
+git clone <URL_DEL_REPOSITORIO>
+cd POO_Group_03
+pip install -r requirements.txt
+python main.py
+```
 
-En un futuro donde el Sol comienza a morir, un explorador emprende una misión hacia Marte en busca de minerales que puedan ayudar a prolongar la supervivencia de su planeta. Sin embargo, Marte no está vacío: al llegar, descubre comunidades marcianas divididas, criaturas hostiles y peligrosas tormentas espaciales que cambian constantemente las condiciones del planeta.
+Requiere Python 3.10 o superior. No usa imágenes ni sonidos externos: sprites y audio se generan por código. Sin internet el juego funciona igual (lista de universidades de respaldo).
 
-El videojuego es una aventura 2D desarrollada en **Python + Pygame** donde el jugador deberá:
-- Recolectar combustible mineral.
-- Construir bases de refugio para protegerse y recuperar salud.
-- Sobrevivir a tormentas de radiación y lluvias de meteoritos.
-- Defenderse de criaturas marcianas hostiles.
-- Ganarse la confianza de marcianos asustados ofreciéndoles minerales para convertirlos en aliados.
+Para verificar el proyecto sin abrir ventana:
 
----
-
-## ▶️ Cómo ejecutar el juego
-
-Requiere **Python 3.10** o superior. Ejecuta los siguientes comandos en tu terminal:
-
-    git clone https://github.com/engineerbk4/POO_Group_03.git
-    cd POO_Group_03
-    pip install -r requirements.txt
-    python main.py
-
----
+```bash
+python verificar_proyecto.py
+```
 
 ## 🎮 Controles
 
 | Tecla | Acción |
-|---|---|
-| **W A S D** / **Flechas** | Mover al explorador por el mapa |
-| **ESPACIO** | Construir una base (cuesta 3 minerales; protege y cura al estar cerca) |
-| **F** | Dar 1 mineral a un marciano asustado (verde) para volverlo aliado (azul) |
-| **ENTER** | Iniciar partida / Pasar al siguiente nivel / Reintentar |
-| **ESC** | Salir del juego |
+|-------|--------|
+| `W A S D` / flechas | Mover al explorador |
+| `ESPACIO` | Construir una base (cuesta 3 minerales; protege y cura) |
+| `F` | Dar 1 mineral a un marciano asustado (aparece el cartel `[F]`) para volverlo aliado |
+| `P` | Pausar / reanudar |
+| `U` / `Shift+U` | En el menú: siguiente / anterior universidad representante |
+| `ENTER` | Comenzar / continuar / reintentar |
+| `ESC` | Salir |
 
----
+## 🗺️ Niveles
 
-## 🗺️ Niveles de la misión
+1. **Supervivencia:** reunir 10 de combustible.
+2. **Defensa:** mantener 3 bases en pie durante 40 s.
+3. **Escape:** reunir 6 de combustible y llegar al cohete.
 
-1. **Supervivencia:** Reunir 10 unidades de combustible mineral mientras sobrevives a las amenazas.
-2. **Defensa:** Construir y mantener 3 bases en pie durante 40 segundos frente a las tormentas y criaturas.
-3. **Escape:** Reunir 6 unidades de combustible y llegar hasta el cohete para escapar de Marte.
+## 🧱 Estructura del proyecto
 
----
+```
+POO_Group_03/
+├── main.py                       # raíz de composición (inyección de dependencias)
+├── verificar_proyecto.py         # pruebas automáticas sin ventana
+├── data/high_scores.json         # Top 5 persistente
+├── logs/partida.log              # eventos con marca de tiempo (Observer)
+└── src/
+    ├── config.py                 # constantes
+    ├── excepciones.py            # ErrorMisionMarte > APIError, PersistenciaError
+    ├── graficos.py               # sprites procedurales animados
+    ├── juego.py                  # Juego: solo Game Loop + coordinación (SRP)
+    ├── patrones/observer.py      # Observador, Sujeto, HUD / Logger / Audio
+    ├── estados_juego/            # State del flujo: Menú, Jugando, Pausa, NivelCompleto, GameOver, Victoria
+    ├── entidades/                # EntidadJuego (abstracta) y subclases + State del Marciano
+    ├── tormentas/                # Tormenta (abstracta), radiación, meteoritos, arena, fábrica
+    ├── niveles/                  # Nivel (abstracta) y los 3 niveles
+    ├── servicios/                # api_client, repositorio_puntajes, gestor_audio
+    └── vista/interfaz.py         # fondo, HUD, menú, pausa, overlays, ranking
+```
 
-## 🧠 Arquitectura y Conceptos de POO aplicados
+## 🧠 Conceptos de POO aplicados
 
-El proyecto demuestra el dominio de los pilares de la Programación Orientada a Objetos mediante una arquitectura de **18 clases**, **6 pilares de POO** y **2 patrones de diseño**, evitando por completo el uso de condicionales de tipo (`isinstance`):
+### Principios de diseño (SOLID, cohesión y acoplamiento)
+- **SRP / alta cohesión:** `Juego` solo coordina el Game Loop. El dibujo está en `InterfazJuego`, la red en `APIClient`, el disco en `RepositorioPuntajes` y el sonido en `GestorAudio`.
+- **Open/Closed:** el Game Loop llama a `update(dt)` / `render()` sin conocer el tipo concreto (cero `isinstance()` en el dominio). Nuevas tormentas, estados o observadores se agregan sin modificar las clases existentes (`TormentaArena` se registra desde `main.py`).
+- **Bajo acoplamiento:** `Juego` recibe niveles, cliente API, repositorio, interfaz y audio por **inyección de dependencias** desde `main.py`. `APIClient` solo entrega `str` y `List[str]` (acoplamiento de datos), jamás respuestas HTTP ni excepciones de red.
+- **Encapsulamiento estricto:** atributos críticos privados (`__salud`), sin setters destructivos.
 
-- **Encapsulamiento estricto:** Los atributos críticos (como `__salud`, `__inventarioMinerales` o `__registroTormentas`) utilizan *name mangling* (doble guion bajo) sin setters destructivos. El estado interno solo cambia mediante métodos validados como `recibirDano()` y `curar()`.
-- **Abstracción y Polimorfismo:** Uso del módulo `abc` y `@abstractmethod` en las clases base (`EntidadJuego`, `Nivel`, `Tormenta` y la interfaz `EstadoMarciano`). El Game Loop actualiza y dibuja todas las entidades llamando a `update()` y `render()` sin conocer su tipo concreto.
-- **Relaciones entre objetos:**
-  - **Composición:** `Nivel` crea, contiene y destruye sus propias entidades y tormentas.
-  - **Agregación:** `Juego` recibe sus instancias de `Nivel` desde afuera; `Marciano` recibe su estado.
-  - **Asociación:** `Base` y `CriaturaMarciana` conocen al `Explorador` para colaborar o interactuar con él.
-  - **Dependencia:** `Explorador` instancia una `Base` al construirla y `Nivel` solicita eventos a `TormentaFactory`.
-- **Patrón State:** Aplicado en `Marciano`. El personaje delega su comportamiento en su estado actual (`estadoActual.ejecutarAccion(self, dt)`), pasando de `MarcianoAsustado` (huye del jugador) a `MarcianoAliado` (lo sigue y lo cura) al recibir un mineral.
-- **Patrón Factory Method:** Implementado en `TormentaFactory` mediante un diccionario de registro dinámico, cumpliendo el principio *Open/Closed* para agregar nuevas tormentas en una sola línea dentro de `main.py`.
+### Relaciones UML
+| Relación | Dónde |
+|----------|-------|
+| **Composición** | `Nivel` crea y destruye sus `EntidadJuego` y `Tormenta` |
+| **Agregación** | `Juego` recibe sus `Nivel`; `Marciano` recibe su `EstadoMarciano` |
+| **Asociación** | `Base → Explorador`, `CriaturaMarciana → Explorador`, `Marciano → objetivo` |
+| **Dependencia** | `Explorador ..> Mineral` `<<use>>` (`recolectar(m)`: lo usa y no lo conserva), `Explorador ..> Base` `<<create>>`, `Nivel ..> TormentaFactory` |
 
-### Diagrama UML
+Diagrama completo en [`docs/diagrama_clases.md`](docs/diagrama_clases.md).
 
-📌 [Ver diagrama UML en tamaño completo](docs/uml/UML_%20Mision%20en%20Marte-Final-Corregido.jpg)
+### Patrones de diseño
+1. **Factory Method** — `TormentaFactory` con registro dinámico (`registrarTormenta`, `crearTormenta`, `tiposDisponibles`). Tormentas: radiación, meteoritos y arena (esta última registrada solo en `main.py`).
+2. **State (doble aplicación)**
+   - `EstadoMarciano` → `MarcianoAsustado` / `MarcianoAliado`: conducta, color, rostro, cartel `[F]` y aura de curación.
+   - `EstadoJuego` → `EstadoMenu`, `EstadoJugando`, `EstadoPausa`, `EstadoNivelCompleto`, `EstadoGameOver`, `EstadoVictoria`: reemplazan los `if/elif` de `Juego`.
+3. **Observer** — `Explorador` y `Nivel` son *sujetos*; notifican `SALUD_CAMBIADA`, `MINERAL_RECOLECTADO`, `BASE_CONSTRUIDA`, `MARCIANO_ALIADO`, `NIVEL_COMPLETADO` y `JUGADOR_DERROTADO`. Observadores: `ObservadorHUD` (mensajes flotantes), `ObservadorLogger` (`logs/partida.log`) y `ObservadorAudio` (efectos de sonido).
 
-![Diagrama UML](docs/uml/UML_%20Mision%20en%20Marte-Final-Corregido.jpg)
+### API externa, excepciones y persistencia
+- `APIClient` consulta `http://universities.hipolabs.com/search?country=Peru` con `urllib` (timeout 3 s, en un hilo para no congelar la ventana). Captura `HTTPError`, `URLError`, `TimeoutError` y `JSONDecodeError` con `try / except / else / finally` y los convierte en `APIError`; ante cualquier fallo usa una lista offline que incluye la **Universidad Peruana Cayetano Heredia**.
+- Excepciones propias: `ErrorMisionMarte` → `APIError`, `PersistenciaError`.
+- `RepositorioPuntajes` guarda el Top 5 en `data/high_scores.json` (`json.dump` / `json.load` con `with open`), maneja `FileNotFoundError`, `PermissionError` y JSON corrupto (lo respalda y continúa).
 
----
+## 👥 Equipo 03
 
-## 🛠️ Tecnologías
+| Integrante | Módulos a cargo |
+|------------|-----------------|
+| (nombre) | Núcleo y entidades base: `entidad_juego`, `mineral`, `explorador`, `base` |
+| (nombre) | Marcianos y patrón State: `estados`, `marciano`, `criatura` |
+| (nombre) | Tormentas, Factory y Game Loop: `tormentas/`, `juego.py` |
+| (nombre) | Niveles y documentación: `niveles/`, `docs/` |
 
-| Tecnología | Uso |
-|---|---|
-| **Python 3** | Lenguaje principal (`abc`, `typing`, `math`, `random`) |
-| **Pygame** | Ventana gráfica, Game Loop, renderizado 2D y manejo de eventos |
-| **Draw.io** | Modelado del diagrama de clases UML |
-| **Visual Studio Code** | Entorno de desarrollo e integración |
-| **Git & GitHub** | Control de versiones con ramas `feature/` y revisión por Pull Requests |
+## 🔀 Flujo de trabajo con Git
 
----
+- La rama `main` siempre contiene código que funciona.
+- Cada tarea se hace en una rama propia: `feature/<tarea>`.
+- Los cambios entran a `main` solo mediante **Pull Request** revisado por otro integrante.
+- Mensajes de commit en español, claros y en presente: `Agrega ...`, `Corrige ...`.
 
-## 📂 Estructura del repositorio
-
-    POO_Group_03/
-    ├── main.py                  # Punto de entrada del juego
-    ├── requirements.txt         # Dependencias del proyecto (pygame)
-    ├── README.md                # Documentación principal
-    ├── LICENSE                  # Licencia MIT
-    ├── assets/                  # Recursos gráficos y capturas
-    ├── docs/                    # Informe académico, presentación y diagramas UML
-    └── src/                     # Código fuente modularizado
-        ├── entidades/           # EntidadJuego, Explorador, Mineral, Base, Criatura y State
-        ├── niveles/             # Nivel abstracto, Supervivencia, Defensa y Escape
-        ├── tormentas/           # Tormenta abstracta, Radiación, Meteoritos y Factory
-        ├── juego.py             # Controlador del Game Loop, fases y HUD
-        ├── config.py            # Constantes globales (resolución, FPS, colores)
-        └── graficos.py          # Funciones auxiliares de dibujo y transparencias
-
----
-
-## 🧑‍🚀 Tripulación (Equipo 03)
-
-| Integrante | Módulos y responsabilidades a cargo |
-|---|---|
-| **Jose Junior Bances Panaque** | Núcleo, arquitectura base, config.py, integración Git y abstracción. |
-| **Yanella Stefhany Salcedo Siguas** | Lógica de niveles (niveles/) y condiciones de victoria. |
-| **Rebeca Milagros Cerdan Dongo** | Lógica ambiental, Patrón Factory y Game Loop (tormentas/, juego.py). |
-| **Josue Obed Barzola Reategui** | Sistema de entidades, inteligencia enemiga y Patrón State (entidades/). |
-
----
+Detalle del reparto y pasos: [`docs/GUIA_EQUIPO.md`](docs/GUIA_EQUIPO.md).
 
 ## 📄 Licencia
 
-Este proyecto se distribuye bajo la licencia **MIT**. Consulta el archivo `LICENSE` para más detalles.
+MIT. Ver `LICENSE`.
