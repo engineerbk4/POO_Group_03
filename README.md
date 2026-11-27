@@ -95,10 +95,10 @@ Diagrama completo en [`docs/diagrama_clases.md`](docs/diagrama_clases.md).
 
 | Integrante | Módulos a cargo |
 |------------|-----------------|
-| (nombre) | Núcleo y entidades base: `entidad_juego`, `mineral`, `explorador`, `base` |
-| (nombre) | Marcianos y patrón State: `estados`, `marciano`, `criatura` |
-| (nombre) | Tormentas, Factory y Game Loop: `tormentas/`, `juego.py` |
-| (nombre) | Niveles y documentación: `niveles/`, `docs/` |
+| Yanella Salcedo | Núcleo y entidades base: `entidad_juego`, `mineral`, `explorador`, `base` |
+| Josué Barzola | Marcianos y patrón State: `estados`, `marciano`, `criatura` |
+| Rebeca Cerdan | Tormentas, Factory y Game Loop: `tormentas/`, `juego.py` |
+| Jose Bances | Niveles y documentación: `niveles/`, `docs/` |
 
 ## 🔀 Flujo de trabajo con Git
 
